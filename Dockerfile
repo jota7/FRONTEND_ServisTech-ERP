@@ -1,18 +1,25 @@
 # Etapa 1: Construcción
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# Instalamos dependencias
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
+
+# Copiamos el resto del código
 COPY . .
+
+# --- EL FIX DE PERMISOS ---
+# Forzamos permisos de ejecución a los binarios de node_modules
+RUN chmod -R +x node_modules/.bin
+
+# Ahora sí ejecutamos el build
 RUN npm run build
 
 # Etapa 2: Servidor Nginx (Producción)
 FROM nginx:alpine
-# Borramos la config vieja para que no dé problemas
 RUN rm /etc/nginx/conf.d/default.conf
-# Ponemos tu nueva configuración
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-# Pasamos los archivos de la app al servidor
 COPY --from=builder /app/dist /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
