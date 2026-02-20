@@ -2,24 +2,23 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Instalamos dependencias
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
+# Copiamos solo los archivos de configuración primero
+COPY package.json package-lock.json ./
+
+# Instalamos de forma limpia (esto asigna permisos correctos)
+RUN npm ci --legacy-peer-deps
 
 # Copiamos el resto del código
 COPY . .
 
-# --- EL FIX DE PERMISOS ---
-# Forzamos permisos de ejecución a los binarios de node_modules
-RUN chmod -R +x node_modules/.bin
+# Ejecutamos el build (usando npx para asegurar que encuentre el ejecutable)
+RUN npx vite build
 
-# Ahora sí ejecutamos el build
-RUN npm run build
-
-# Etapa 2: Servidor Nginx (Producción)
+# Etapa 2: Producción con Nginx
 FROM nginx:alpine
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
