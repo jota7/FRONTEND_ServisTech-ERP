@@ -2,17 +2,20 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copiamos solo los archivos de configuración primero
+# 1. Limpiamos cualquier rastro anterior y copiamos solo lo necesario
 COPY package.json package-lock.json ./
 
-# Instalamos de forma limpia (esto asigna permisos correctos)
-RUN npm ci --legacy-peer-deps
+# 2. Instalamos con permisos de superusuario dentro del contenedor
+RUN npm install --legacy-peer-deps
 
-# Copiamos el resto del código
+# 3. Copiamos el código
 COPY . .
 
-# Ejecutamos el build (usando npx para asegurar que encuentre el ejecutable)
-RUN npx vite build
+# 4. PUENTEO DE PERMISOS: Forzamos el bit de ejecución a nivel de sistema
+RUN chmod +x ./node_modules/.bin/vite
+
+# 5. Ejecución directa del binario (Sin usar sh si es posible)
+RUN ./node_modules/.bin/vite build
 
 # Etapa 2: Producción con Nginx
 FROM nginx:alpine
